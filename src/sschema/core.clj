@@ -97,6 +97,7 @@
 (defprotocol ParserWriter
   (attributes [writer values])
   (elementStart [writer name])
+  (content [writer value])
   (elementEnd [writer name])
   (dump [writer])
   )
@@ -107,6 +108,8 @@
       (set! output (conj (vec output) " :attr " values)))
     (elementStart [writer name]
       (set! output (conj (vec output) "{:tag " name)))
+    (content [writer value]
+      (set! output (conj (vec output) ":content " value)))
     (elementEnd [writer name]
       (set! output (conj (vec output) " }")))
     (dump [writer] (apply str output)))
@@ -148,15 +151,7 @@
   (let [attributeName (parseName reader)
         attributeValue (seekCharIgnoreWhitespace reader \= processAttributeValue)]
     {attributeName attributeValue}))
- 
-(deftest test-processAttribute
-  (testing "parseName"
-    (is (= {"name" "value"}
-           (let [reader (input-stream-reader (make-inputstream "name =\"value\" "))]
-             (processAttribute reader))
-           )))
-  )
- 
+  
 (def ^:dynamic *attributes*)
 (defn processAttributes
   [^::Reader reader]
@@ -173,7 +168,77 @@
          )))
     *attributes*
     ))
- 
+
+(defn skipUntilNextTag
+  [^::Reader reader]
+  (loop []
+    (let [ch (peek-char reader)]
+      (when (or (not (nil? ch)) (= \< ch))
+        (do
+          (skip-char reader)
+          (recur)) 
+      )
+      )))
+
+
+
+(def ^:dynamic *cdata*)
+(defn parseCData
+  [^::Reader reader]
+  (binding [*cdata* []]
+    (loop []
+      (let [ch (peek-char reader)]
+        (when (or (not (nil? ch)) (= \] (last *cdata*)))
+          (do (set! *cdata* (conj *cdata* (read-char reader))) (recur))
+          )
+        ))
+    (apply str *cdata*)
+    ))
+
+(let [reader (input-stream-reader (make-inputstream " were ]]d"))]
+  (parseCData reader)
+  )
+
+(defn parseCommentOrCData
+  [^::Reader reader ^::ParserWriter writer]
+  (if (= \[ (peek-char reader))
+    (let [readName (parseName reader)]
+      (if (and ( = "CDATA" readName) (= \[ (peek-char reader)))
+        (comment writer (parseCData (skip-char reader)))
+        (skipUntilNextTag reader)
+        ))
+    (skipUntilNextTag)
+   ))
+
+(defn parseTagData
+  [^::Reader reader ^::ParserWriter writer]
+  (loop []
+    (let [ch (peek-char reader)]
+      (cond
+        (= \! ch) (parseCommentOrCData (skip-char reader) writer)
+        (= \/ ch) (elementEnd writer (parseName (skip-char reader)))  
+        ))
+   ))
+
+(defn parseElementBody
+  [^::Reader reader ^::ParserWriter writer]
+  (loop []
+    (let [ch (peek-char reader)]
+      (cond
+        (isWhitespace? ch) (do
+                              (read-char reader)
+                              (recur))
+        (= \< ch) (parseTagData (skip-char reader) writer)
+        (isValidNameChar? ch) (content writer (parseName reader))
+        ))
+   ))
+
+(let [writer (sschema.core.StringParserWriter. nil)
+      reader (input-stream-reader (make-inputstream " were "))]
+  (parseElementBody reader writer)
+  (dump writer)
+  )
+
 (defn parseElement
   [^::Reader reader ^::ParserWriter writer]
   (let [elementName (parseName reader)]
@@ -190,7 +255,7 @@
          (= \/ ch) (elementEnd writer elementName)
          (= \> ch) "process content or children?"))
       )))
-  
+ 
 (comment
 (defn remove
   [^InputStreamReader reader]
@@ -199,7 +264,7 @@
        (nil? ch) "done"
        (= \> ch) "skipped"
        :else (recur (read-char reader)))))
- 
+
 (defn parserXml
   [^InputStreamReader reader]
   (loop []
@@ -220,6 +285,6 @@
                    (recur))
        :else (recur)
        ))))
- 
+
 (parserXml (input-stream-reader (java.io.ByteArrayInputStream. (.getBytes "<?xml><bean attr=\"fdf\"><child/></bean>"))))
   )

@@ -102,6 +102,14 @@
            )))
   )
 
+(deftest test-processAttribute
+  (testing "parseName"
+    (is (= {"name" "value"}
+           (let [reader (input-stream-reader (make-inputstream "name =\"value\" "))]
+             (processAttribute reader))
+           )))
+  )
+
 (deftest test-processAttributes
   (testing "parseName"
     (is (= {"name" "value" "sec" "ond"}
