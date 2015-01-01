@@ -91,16 +91,21 @@
     (is (= " :attr {\"blah\" \"value\"}"
            (let [writer (sschema.core.StringParserWriter. nil)]
              (attributes writer {"blah" "value"})
-             (dump writer))
-           )))
+             (dump writer)))))
+  (testing "empty content"
+    (is (nil?
+         (let [writer (sschema.core.StringParserWriter. nil)]
+           (content writer nil)
+           (dump writer)))))
+  (testing "empty with dump"
+    (is (nil?
+         (dump (sschema.core.StringParserWriter. nil)))))
   )
 
 (deftest test-parseName
   (testing "parseName"
     (is (= "bean"
-           (parseName (input-stream-reader (make-inputstream "bean>")))
-           )))
-  )
+           (parseName (input-stream-reader (make-inputstream "bean>")))))))
 
 (deftest test-processAttribute
   (testing "parseName"
@@ -115,14 +120,82 @@
     (is (= {"name" "value" "sec" "ond"}
            (let [reader (input-stream-reader (make-inputstream "name =\"value\" sec=\"ond\""))]
              (processAttributes reader)
-             )
+             )))))
+
+(deftest test-skipUntilNextTag
+  (testing "skipToTag"
+    (is (= \<
+           (peek-char (skipUntilNextTag (input-stream-reader (make-inputstream "blah--><balh/>")))))))
+  (testing "skipToEnd"
+    (is (nil?
+         (peek-char (skipUntilNextTag (input-stream-reader (make-inputstream "blah-->")))))))
+  )
+
+(deftest test-parseCData
+  (testing "parseTilEndOfCData"
+    (is (= "blah")
+        (parseCData (input-stream-reader (make-inputstream "blah]]"))))))
+
+(deftest test-parseCommentOrCData
+  (testing "parseCData"
+    (is (= "\" were \""
+           (parseCommentOrCData (input-stream-reader (make-inputstream "[CDATA[ were ]]d"))))))
+  (testing "parseComment"
+    (is (nil?
+         (parseCommentOrCData (input-stream-reader (make-inputstream "-- blh -->")))))))
+
+(deftest test-parseTagData
+  (testing "commentTagData"
+    (is (nil?
+           (let [writer (sschema.core.StringParserWriter. nil)
+                 reader (input-stream-reader (make-inputstream "!-- comment -->"))]
+             (parseTagData reader writer)
+             (dump writer)
+             ))))
+  (testing "cdataTagData"
+    (is (= ":content \" Hello \"" 
+           (let [writer (sschema.core.StringParserWriter. nil)
+                 reader (input-stream-reader (make-inputstream "![CDATA[ Hello ]]>"))]
+             (parseTagData reader writer)
+             (dump writer)
+             ))))
+  (testing "elementEndTagData"
+    (is (= " }"
+         (let [writer (sschema.core.StringParserWriter. nil)
+               reader (input-stream-reader (make-inputstream "/endof>"))]
+           (parseTagData reader writer)
+           (dump writer)
+           )))
+)
+  (testing "elementStartTagData"
+    (is (= "{:tag newele }"
+           (let [writer (sschema.core.StringParserWriter. nil)
+                 reader (input-stream-reader (make-inputstream "newele/>"))]
+             (parseTagData reader writer)
+             (dump writer)
+             ))))
+  )
+
+(deftest test-parseElementBody
+  (is (= ":content were"
+         (let [writer (sschema.core.StringParserWriter. nil)
+               reader (input-stream-reader (make-inputstream " were "))]
+           (parseElementBody reader writer)
+           (dump writer)
            ))))
 
 (deftest test-processElement
-  (testing "parseName"
+  (testing "parseSingleElement"
     (is (= "{:tag bean :attr {\"name\" \"value\", \"sec\" \"ond\"} }"
            (let [writer (sschema.core.StringParserWriter. nil)
                  reader (input-stream-reader (make-inputstream "bean name =\"value\" sec=\"ond\"/>"))]
              (parseElement reader writer)
-             (dump writer))))))
+             (dump writer)))))
+  (testing "parseNestedElement"
+    (is (= "{:tag bean :attr {\"name\" \"value\", \"sec\" \"ond\"} :children { }"
+           (let [writer (sschema.core.StringParserWriter. nil)
+                 reader (input-stream-reader (make-inputstream "bean name =\"value\" sec=\"ond\"><nested/></bean>"))]
+             (parseElement reader writer)
+             (dump writer)))))
+  )
 (run-tests)

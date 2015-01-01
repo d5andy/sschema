@@ -99,6 +99,8 @@
   (elementStart [writer name])
   (content [writer value])
   (elementEnd [writer name])
+  (childrenStart [writer])
+  (childrenEnd [writer])
   (dump [writer])
   )
  
@@ -109,18 +111,18 @@
     (elementStart [writer name]
       (set! output (conj (vec output) "{:tag " name)))
     (content [writer value]
-      (set! output (conj (vec output) ":content " value)))
+      (when value
+        (set! output (conj (vec output) ":content " value))))
     (elementEnd [writer name]
       (set! output (conj (vec output) " }")))
-    (dump [writer] (apply str output)))
- 
-;;(ns-unmap *ns* 'test-StringParserWriter)
-;;(ns-unmap *ns* 'test-seek)
-;;(ns-unmap *ns* 'test-input-stream-reader)
-;;(ns-unmap *ns* 'test-parseName)
-;;(ns-unmap *ns* 'test-processAttribute)
-;;(ns-unmap *ns* 'test-processAtributes)
- 
+    (childrenStart [writer]
+      (set! output (conj (vec output) " :children {")))
+    (childrenEnd [writer]
+      (set! output (conj (vec output) " }")))
+    (dump [writer]
+      (when output
+        (apply str output))))
+
 ;;; parser stuff
  
 (def ^:dynamic *name*)
@@ -173,14 +175,11 @@
   [^::Reader reader]
   (loop []
     (let [ch (peek-char reader)]
-      (when (or (not (nil? ch)) (= \< ch))
+      (when-not (or (nil? ch) (= \< ch))
         (do
           (skip-char reader)
-          (recur)) 
-      )
-      )))
-
-
+          (recur)))))
+  reader)
 
 (def ^:dynamic *cdata*)
 (defn parseCData
@@ -188,37 +187,49 @@
   (binding [*cdata* []]
     (loop []
       (let [ch (peek-char reader)]
-        (when (or (not (nil? ch)) (= \] (last *cdata*)))
+        (when-not (or (nil? ch) (= \] (last *cdata*) ch))
           (do (set! *cdata* (conj *cdata* (read-char reader))) (recur))
           )
         ))
-    (apply str *cdata*)
+    (str \" (apply str (drop-last  *cdata*)) \")
     ))
 
-(let [reader (input-stream-reader (make-inputstream " were ]]d"))]
-  (parseCData reader)
-  )
-
 (defn parseCommentOrCData
-  [^::Reader reader ^::ParserWriter writer]
+  [^::Reader reader]
   (if (= \[ (peek-char reader))
-    (let [readName (parseName reader)]
+    (let [readName (parseName (skip-char reader))]
       (if (and ( = "CDATA" readName) (= \[ (peek-char reader)))
-        (comment writer (parseCData (skip-char reader)))
-        (skipUntilNextTag reader)
+        (parseCData (skip-char reader))
+        (do (skipUntilNextTag reader) nil)
         ))
-    (skipUntilNextTag)
-   ))
+    (do (skipUntilNextTag reader) nil)
+    ))
+
+(declare parseElement)
+
+(defn startChildren
+  [^::Reader reader ^::ParserWriter writer]
+  (loop []
+    (when (isValidNameChar? (peek-char reader))
+      (childrenStart writer)
+      (parseElement reader writer)
+      (childrenEnd writer)
+      (println "here" (peek-char reader))
+      (recur)
+      )
+    ))
 
 (defn parseTagData
   [^::Reader reader ^::ParserWriter writer]
   (loop []
     (let [ch (peek-char reader)]
       (cond
-        (= \! ch) (parseCommentOrCData (skip-char reader) writer)
-        (= \/ ch) (elementEnd writer (parseName (skip-char reader)))  
-        ))
-   ))
+        (= \! ch) (let [commentOrText (parseCommentOrCData (skip-char reader))]
+                    (content writer commentOrText)
+                    )
+        (= \/ ch) (elementEnd writer (parseName (skip-char reader)))
+        (isValidNameChar? ch) (processChildren reader writer)
+        ))))
 
 (defn parseElementBody
   [^::Reader reader ^::ParserWriter writer]
@@ -231,31 +242,34 @@
         (= \< ch) (parseTagData (skip-char reader) writer)
         (isValidNameChar? ch) (content writer (parseName reader))
         ))
-   ))
-
-(let [writer (sschema.core.StringParserWriter. nil)
-      reader (input-stream-reader (make-inputstream " were "))]
-  (parseElementBody reader writer)
-  (dump writer)
-  )
+    ))
 
 (defn parseElement
   [^::Reader reader ^::ParserWriter writer]
+  (println "parseElement " (peek-char reader))
   (let [elementName (parseName reader)]
     (elementStart writer elementName)
     (loop []
       (let [ch (peek-char reader)]
         (cond
-         (isWhitespace? ch) (do
-                              (read-char reader)
-                              (recur))
-         (isValidNameChar? ch) (let [elementAttributes (processAttributes reader)]
-                                 (attributes writer elementAttributes)
-                                 (recur))
-         (= \/ ch) (elementEnd writer elementName)
-         (= \> ch) "process content or children?"))
-      )))
- 
+          (isWhitespace? ch) (do
+                               (read-char reader)
+                               (recur))
+          (isValidNameChar? ch) (let [elementAttributes (processAttributes reader)]
+                                  (attributes writer elementAttributes)
+                                  (recur))
+          (= \/ ch) (when (= \> (doto reader read-char peek-char))
+                      (elementEnd writer elementName))
+          (= \> ch) (do
+                      (parseElementBody (skip-char reader) writer))
+          )
+        ))))
+
+(let [writer (sschema.core.StringParserWriter. nil)
+                 reader (input-stream-reader (make-inputstream "bean name =\"value\" sec=\"ond\"><nested/><meetoo/></bean>"))]
+             (parseElement reader writer)
+             (println  (dump writer)))
+
 (comment
 (defn remove
   [^InputStreamReader reader]
