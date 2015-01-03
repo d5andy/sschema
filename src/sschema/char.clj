@@ -28,3 +28,9 @@
   (if (isAlphaNumeric? ch)
     true
     (or (= \- ch) (= \_ ch) (= \# ch))))
+
+(def ctrl-char-int #{(int \<) (int \>) (int \/) (int \!) (int \[) (int \]) (int \?) (int \-)})
+
+(defn isCtrlChar?
+  [^Character ch]
+  (when ch (contains? ctrl-char-int (int ch))))

@@ -131,7 +131,7 @@
              (parseProlog reader writer)
              (dump writer)))))
   (testing "no-attributes"
-    (is (= " :prolog {} :startElement \"bean\" :attr {}"
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :endElement \"bean\""
            (let [reader (-> "<?xml ?><bean></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)

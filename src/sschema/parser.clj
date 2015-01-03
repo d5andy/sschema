@@ -103,40 +103,40 @@
 
 ;;;;
 
+(defn ctrl-seq
+  [^::Reader reader]
+  (let [peek (peek-char reader)]
+    (when (isCtrlChar? peek)
+      (cons (read-char reader)
+            (lazy-seq (if (= \> peek) 
+                        nil
+                        (ctrl-seq reader)))))))
+
 (defn determineTagType
   [^::Reader reader]
-  (let [ch (peek-char reader)]
+  (let [ctrl-str (apply str (ctrl-seq reader))
+        peek (peek-char reader)]
     (cond
-      (nil? ch) :nil
-      (isWhitespace? ch) :whitespace
-      (isValidNameChar? ch) :text
-      (= \> ch) :closingTag
-      (= \/ ch) (if (= \> (-> reader skip-char peek-char))
-                  :elementEnd
-                  :illegal)
-      (= \? ch) (if (= \> (-> reader skip-char peek-char))
-                  :prologEnd
-                  :illegal)
-      (= \< ch) (let [peek (-> reader skip-char peek-char)]
-                  (cond
-                    (= \? peek) (if (= "xml" (parse-name (skip-char reader)))
-                                  :prologStart
-                                  :illegal)
-                    (= \! peek) (let [peek (-> reader skip-char peek-char)]
-                                  (cond
-                                    (= \- peek) (if (= \- (-> reader skip-char peek-char))
-                                             :commentStart
-                                             :illegal)
-                                    (= \[ peek) (if (= "CDATA" (parse-name (skip-char reader)))
-                                                  (if (= \[ (peek-char reader))
-                                                    :cdata
-                                                    :illegal)
-                                                  :illegal)
-                                    :else :illegal))
-                    (= \/ peek) :elementEndTag
-                    (isValidNameChar? peek) :elementStart
-                    :else :illegal))
-      :else :illegal)))
+      (= "<" ctrl-str) (if (isValidNameChar? peek)
+                         :elementStart
+                         :illegal)
+      (= "</" ctrl-str) :elementEndTag
+      (= "<?" ctrl-str) (if (= "xml" (parse-name reader))
+                          :prologStart
+                          :illegal)
+      (= "<!--" ctrl-str) :commentStart
+      (= "<![" ctrl-str)  (if (and (= "CDATA" (parse-name reader))
+                                   (= \[ (peek-char reader)))
+                            :cdata
+                            :illegal)
+      (= ">" ctrl-str) :closingTag
+      (= "?>" ctrl-str) :prologEnd
+      (= "/>" ctrl-str) :elementEnd
+      (nil? peek) :nil
+      (isWhitespace? peek) :whitespace
+      (isValidNameChar? peek) :text
+      :else :illegal
+      )))
 
 (defn determineTagTypeIgnoreWhitespace
   [^::Reader reader]
@@ -170,15 +170,14 @@
       :cdata (content writer (parseCdata reader))
       :text (content writer (parseText reader))
       :commentStart (parseComment reader)
-      :elementEndTag (let [endTagElementName (parse-name (skip-char reader))]
-                       (println "endTag " endTagElementName)
+      :elementEndTag (let [endTagElementName (parse-name reader)]
                        (if (= endTagElementName parentElementName)
                          (elementEnd writer parentElementName)
                          (throw (IllegalArgumentException. (str "Element Close Mismtach")))))
       :elementStart (let [childElementName (parseElement reader writer)
                           closingType (determineTagTypeIgnoreWhitespace reader)]
                       (condp = closingType
-                        :closingTag (parseChildren (skip-char reader) writer childElementName)
+                        :closingTag (parseChildren reader writer childElementName)
                         :elementEnd (elementEnd writer childElementName)
                         (throwUnexpectedTypeException type))))))
 
@@ -198,7 +197,7 @@
                     (elementStart writer (:tag element) (:attr element))
                     (condp = closingType
                       :closingTag (do
-                                    (parseChildren (skip-char reader) writer (:tag element))
+                                    (parseChildren reader writer (:tag element))
                                     (parseDocumentEnd (skip-char reader) writer))
                       :elementEnd (parseDocumentEnd (skip-char reader) writer)
                       (throwUnexpectedTypeException type)))
@@ -212,7 +211,7 @@
       (let [attributes (processAttributes reader)
             type (determineTagTypeIgnoreWhitespace reader)]
         (if (= :prologEnd type)
-          (let [nxtType (determineTagTypeIgnoreWhitespace (skip-char reader))]
+          (let [nxtType (determineTagTypeIgnoreWhitespace reader)]
             (prolog writer attributes)
             (parseRoot reader writer nxtType))
           (throwUnexpectedTypeException type)))
