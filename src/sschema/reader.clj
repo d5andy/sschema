@@ -65,3 +65,37 @@
 (defn parse-name
   [^::Reader reader]
   (apply str (match-seq reader isValidNameChar?)))
+
+(defn parse-whitespace
+  [^::Reader reader]
+  (apply str (match-seq reader isWhitespace?)))
+
+(defn parse-text
+  [^::Reader reader]
+  (apply str (match-seq reader #(when % (not (isCtrlChar? %))))))
+
+(defn quote-seq
+  [^::Reader reader]
+  (let [ch (read-char reader)]
+    (if (nil? ch)
+      (IllegalArgumentException. "Missing end quote")
+      (when-not (= \" ch)
+        (cons ch (lazy-seq (quote-seq reader)))))))
+
+(defn parse-quoted
+  [^::Reader reader]
+  (when (= \" (peek-char reader))
+    (apply str (quote-seq (skip-char reader)))))
+
+(defn ctrl-seq
+  [^::Reader reader]
+  (let [peek (peek-char reader)]
+    (when (isCtrlChar? peek)
+      (cons (read-char reader)
+            (lazy-seq (if (= \> peek) 
+                        nil
+                        (ctrl-seq reader)))))))
+
+(defn parse-ctrl
+  [^::Reader reader]
+  (apply str (ctrl-seq reader)))

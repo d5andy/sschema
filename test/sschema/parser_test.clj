@@ -6,92 +6,14 @@
   (:require [sschema.writer :refer :all])
   (:require [clojure.tools.namespace.repl :refer [refresh]]))
 
-(deftest test-processAttribute
-  (testing "parseName"
-    (is (= {"name" "value"}
-           (let [reader (input-stream-reader (make-inputstream "name =\"value\" "))]
-             (processAttribute reader))
-           )))
-  )
-
-(deftest test-processAttributes
-  (testing "parseName"
-    (is (= {"name" "value" "sec" "ond"}
-           (let [reader (input-stream-reader (make-inputstream "name =\"value\" sec=\"ond\""))]
-             (processAttributes reader)
-             )))))
-
-(deftest test-skipUntilNextTag
-  (testing "skipToTag"
-    (is (= \<
-           (peek-char (skipUntilNextTag (input-stream-reader (make-inputstream "blah--><balh/>")))))))
-  (testing "skipToEnd"
-    (is (nil?
-         (peek-char (skipUntilNextTag (input-stream-reader (make-inputstream "blah-->")))))))
-  )
-
-(deftest test-parseCData
-  (testing "parseTilEndOfCData"
-    (is (= "blah")
-        (parseCData (input-stream-reader (make-inputstream "blah]]"))))))
-
-(deftest test-parseCommentOrCData
-  (testing "parseCData"
-    (is (= "\" were \""
-           (parseCommentOrCData (input-stream-reader (make-inputstream "[CDATA[ were ]]d"))))))
-  (testing "parseComment"
-    (is (nil?
-         (parseCommentOrCData (input-stream-reader (make-inputstream "-- blh -->")))))))
-
 (defn createWriter
   []
   (sschema.writer.StringParserWriter. nil))
 
-(comment 
-  (deftest test-parseTagData
-    (testing "commentTagData"
-      (is (nil?
-           (let [writer (createWriter)
-                 reader (input-stream-reader (make-inputstream "!-- comment -->"))]
-             (parseTagData reader writer)
-             (dump writer)
-             ))))
-    (testing "cdataTagData"
-      (is (= ":content \" Hello \"" 
-             (let [writer (createWriter)
-                   reader (input-stream-reader (make-inputstream "![CDATA[ Hello ]]>"))]
-               (parseTagData reader writer)
-               (dump writer)
-               ))))
-    (testing "elementEndTagData"
-      (is (= " }"
-             (let [writer (createWriter)
-                   reader (input-stream-reader (make-inputstream "/endof>"))]
-               (parseTagData reader writer)
-               (dump writer)
-               )))
-      )
-    (testing "elementStartTagData"
-      (is (= "{:tag newele }"
-             (let [writer (createWriter)
-                   reader (input-stream-reader (make-inputstream "newele/>"))]
-               (parseTagData reader writer)
-               (dump writer)
-               ))))
-    ))
-
-(deftest test-parseElementBody
-  (is (= " :content \"were\""
-         (let [writer (createWriter)
-               reader (input-stream-reader (make-inputstream " were "))]
-           (parseElementBody reader writer)
-           (dump writer)
-           ))))
-
 (deftest test-processElement
   (testing "parseSingleElement"
     (is (= {:tag "bean" :attr {"name" "value" "sec" "ond"}} 
-           (-> "bean name =\"value\" sec=\"ond\"/>" make-inputstream input-stream-reader parseElement)))))
+           (-> "bean name=\"value\" sec=\"ond\"/>" make-inputstream input-stream-reader parseElement)))))
 
 (deftest test-determineTagType
   (testing "nil"
@@ -126,13 +48,25 @@
 (deftest test-parseProlog
   (testing "attributes"
     (is (= " :prolog {\"encoding\" \"UTF-16\"} :startElement \"bean\" :attr {} :endElement \"bean\""
-           (let [reader (-> "<?xml encoding=\"UTF-16\" ?><bean/>" make-inputstream input-stream-reader)
+           (let [reader (-> "<?xml encoding=\"UTF-16\"?><bean/>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
   (testing "no-attributes"
     (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
-           (let [reader (-> "<?xml ?><bean><child/></bean>" make-inputstream input-stream-reader)
+           (let [reader (-> "<?xml?><bean><child/></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (dump writer)))))
+  (testing "text"
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"aaa\" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+           (let [reader (-> "<?xml ?><bean>aaa<child/></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (dump writer)))))
+  (testing "whitespace"
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"  \" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+           (let [reader (-> "<?xml ?><bean>  <child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
