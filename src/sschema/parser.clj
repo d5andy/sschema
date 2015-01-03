@@ -174,11 +174,14 @@
                        (if (= endTagElementName parentElementName)
                          (elementEnd writer parentElementName)
                          (throw (IllegalArgumentException. (str "Element Close Mismtach")))))
-      :elementStart (let [childElementName (parseElement reader writer)
+      :elementStart (let [childElement (parseElement reader)
                           closingType (determineTagTypeIgnoreWhitespace reader)]
+                      (elementStart writer (:tag childElement) (:attr childElement))
                       (condp = closingType
-                        :closingTag (parseChildren reader writer childElementName)
-                        :elementEnd (elementEnd writer childElementName)
+                        :closingTag (parseChildren reader writer (:tag childElement))
+                        :elementEnd (do
+                                      (elementEnd writer (:tag childElement))
+                                      (parseChildren reader writer parentElementName))
                         (throwUnexpectedTypeException type))))))
 
 (defn parseDocumentEnd
@@ -199,7 +202,9 @@
                       :closingTag (do
                                     (parseChildren reader writer (:tag element))
                                     (parseDocumentEnd (skip-char reader) writer))
-                      :elementEnd (parseDocumentEnd (skip-char reader) writer)
+                      :elementEnd (do
+                                    (elementEnd writer (:tag element))
+                                    (parseDocumentEnd (skip-char reader) writer))
                       (throwUnexpectedTypeException type)))
     (throwUnexpectedTypeException type)))
   

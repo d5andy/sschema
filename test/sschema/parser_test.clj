@@ -125,14 +125,14 @@
 
 (deftest test-parseProlog
   (testing "attributes"
-    (is (= " :prolog {\"encoding\" \"UTF-16\"} :startElement \"bean\" :attr {}"
+    (is (= " :prolog {\"encoding\" \"UTF-16\"} :startElement \"bean\" :attr {} :endElement \"bean\""
            (let [reader (-> "<?xml encoding=\"UTF-16\" ?><bean/>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
   (testing "no-attributes"
-    (is (= " :prolog {} :startElement \"bean\" :attr {} :endElement \"bean\""
-           (let [reader (-> "<?xml ?><bean></bean>" make-inputstream input-stream-reader)
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+           (let [reader (-> "<?xml ?><bean><child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
