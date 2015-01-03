@@ -56,14 +56,12 @@
   (seek reader #(= ch %) isWhitespace? munch))
  
 ;;; parser stuff
- 
-(def ^:dynamic *name*)
-(defn parseName
+
+(defn match-seq
+  [^::Reader reader, match]
+  (when (match (peek-char reader))
+    (cons (read-char reader) (lazy-seq (match-seq reader match)))))
+
+(defn parse-name
   [^::Reader reader]
-  (binding [*name* []]
-    (loop [ch (peek-char reader)]
-      (cond
-        (isValidNameChar? ch) (let [readCh (read-char reader)]
-                                (set! *name* (conj *name* readCh))
-                                (recur (peek-char reader)))))
-    (apply str *name*)))
+  (apply str (match-seq reader isValidNameChar?)))

@@ -50,9 +50,9 @@
                  isWhitespace?
                  #(read-char %))))))
 
-(deftest test-parseName
-  (testing "parseName"
+(deftest test-parse-name
+  (testing "parse-name"
     (is (= "bean"
-           (parseName (input-stream-reader (make-inputstream "bean>")))))))
+           (parse-name (input-stream-reader (make-inputstream "bean>")))))))
 
 (run-tests)

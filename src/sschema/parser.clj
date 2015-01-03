@@ -9,7 +9,7 @@
  
 (def processQuotedAttributeValue
   (fn [^::Reader reader]
-     (let [attributeValue (parseName (skip-char reader))]
+     (let [attributeValue (parse-name (skip-char reader))]
        (skip-char reader)
        attributeValue)))
  
@@ -19,7 +19,7 @@
  
 (defn processAttribute
   [^::Reader reader ]
-  (let [attributeName (parseName reader)
+  (let [attributeName (parse-name reader)
         attributeValue (seekCharIgnoreWhitespace reader \= processAttributeValue)]
     {attributeName attributeValue}))
   
@@ -66,7 +66,7 @@
 (defn parseCommentOrCData
   [^::Reader reader]
   (if (= \[ (peek-char reader))
-    (let [readName (parseName (skip-char reader))]
+    (let [readName (parse-name (skip-char reader))]
       (if (and ( = "CDATA" readName) (= \[ (peek-char reader)))
         (parseCData (skip-char reader))
         (do (skipUntilNextTag reader) nil)
@@ -82,7 +82,7 @@
         (isWhitespace? ch) (do
                               (read-char reader)
                               (recur))
-        (isValidNameChar? ch) (content writer (parseName reader))
+        (isValidNameChar? ch) (content writer (parse-name reader))
         ))
     ))
 
@@ -90,7 +90,7 @@
 (def ^:dynamic *attributes*)
 (defn ^String parseElement
   [^::Reader reader]
-  (binding [*elementName* (parseName reader)
+  (binding [*elementName* (parse-name reader)
             *attributes* {}]
     (loop []
       (let [ch (peek-char reader)]
@@ -119,7 +119,7 @@
                   :illegal)
       (= \< ch) (let [peek (-> reader skip-char peek-char)]
                   (cond
-                    (= \? peek) (if (= "xml" (parseName (skip-char reader)))
+                    (= \? peek) (if (= "xml" (parse-name (skip-char reader)))
                                   :prologStart
                                   :illegal)
                     (= \! peek) (let [peek (-> reader skip-char peek-char)]
@@ -127,7 +127,7 @@
                                     (= \- peek) (if (= \- (-> reader skip-char peek-char))
                                              :commentStart
                                              :illegal)
-                                    (= \[ peek) (if (= "CDATA" (parseName (skip-char reader)))
+                                    (= \[ peek) (if (= "CDATA" (parse-name (skip-char reader)))
                                                   (if (= \[ (peek-char reader))
                                                     :cdata
                                                     :illegal)
@@ -170,7 +170,8 @@
       :cdata (content writer (parseCdata reader))
       :text (content writer (parseText reader))
       :commentStart (parseComment reader)
-      :elementEndTag (let [endTagElementName (parseName reader)]
+      :elementEndTag (let [endTagElementName (parse-name (skip-char reader))]
+                       (println "endTag " endTagElementName)
                        (if (= endTagElementName parentElementName)
                          (elementEnd writer parentElementName)
                          (throw (IllegalArgumentException. (str "Element Close Mismtach")))))
@@ -179,8 +180,7 @@
                       (condp = closingType
                         :closingTag (parseChildren (skip-char reader) writer childElementName)
                         :elementEnd (elementEnd writer childElementName)
-                        (throwUnexpectedTypeException type)))
-      )))
+                        (throwUnexpectedTypeException type))))))
 
 (defn parseDocumentEnd
   [^::Reader reader, ^::ParserWriter writer]
