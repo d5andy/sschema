@@ -5,6 +5,36 @@
   (:require [clojure.test :refer :all])
   (:require [clojure.tools.namespace.repl :refer [refresh]]))
 
+(defn cdata-seq
+  [^::Reader reader buf]
+  (let [ch (read-char reader)]
+    (when ch
+      (cond
+        (= \> ch) (if (= '(\] \]) buf)
+                    nil
+                    (cons ch (lazy-seq (cdata-seq reader nil))))
+        (= \] ch) (cons ch (lazy-seq (cdata-seq reader (conj (vec buf) ch))))
+        :else (cons ch (lazy-seq (cdata-seq reader nil)))))))
+
+(defn parseCdata
+  [^::Reader reader]
+  (apply str (-> (cdata-seq reader nil) butlast butlast)))
+
+(defn comment-seq
+  [^::Reader reader buf]
+  (let [ch (read-char reader)]
+    (when ch
+      (cond
+        (= \> ch) (if (= [\- \-] buf)
+                      nil
+                      (throw (IllegalArgumentException. "close tag in comment body")))
+        (= \- ch) (cons ch (lazy-seq (comment-seq reader (conj (vec buf) ch))))
+        :else (cons ch (lazy-seq (comment-seq reader nil)))))))
+
+(defn parseComment
+  [^::Reader reader]
+  (apply str (-> (comment-seq reader nil) butlast butlast)))
+
 (defn process-attributes
   [^::Reader reader]
   (parse-whitespace reader)
@@ -25,8 +55,6 @@
         attributes (into {} (process-attributes reader))]
     {:tag elementName :attr attributes}))
 
-;;;;
-
 (defn determineTagType
   [^::Reader reader]
   (let [ctrl-str (parse-ctrl reader)
@@ -41,7 +69,7 @@
                           :illegal)
       (= "<!--" ctrl-str) :commentStart
       (= "<![" ctrl-str)  (if (and (= "CDATA" (parse-name reader))
-                                   (= \[ (peek-char reader)))
+                                   (= \[ (read-char reader)))
                             :cdata
                             :illegal)
       (= ">" ctrl-str) :closingTag
@@ -50,8 +78,7 @@
       (nil? peek) :nil
       (isWhitespace? peek) :whitespace
       (isValidNameChar? peek) :text
-      :else :illegal
-      )))
+      :else :illegal)))
 
 (defn determineTagTypeIgnoreWhitespace
   [^::Reader reader]
@@ -61,14 +88,6 @@
         type)))
 
 ;;;;
-
-(defn parseCdata
-  [^::Reader reader]
-  )
-
-(defn parseComment
-  [^::Reader reader]
-  )
 
 (defn throwUnexpectedTypeException
   [^String type]

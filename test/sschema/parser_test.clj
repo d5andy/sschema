@@ -64,6 +64,18 @@
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
+  (testing "comment"
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+           (let [reader (-> "<?xml ?><bean><!-- dsad --><child/></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (dump writer)))))
+  (testing "cdata"
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"dsad<>\" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+           (let [reader (-> "<?xml ?><bean><![CDATA[dsad<>]]><child/></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (dump writer)))))
   (testing "whitespace"
     (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"  \" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
            (let [reader (-> "<?xml ?><bean>  <child/></bean>" make-inputstream input-stream-reader)
