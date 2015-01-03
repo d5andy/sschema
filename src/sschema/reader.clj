@@ -40,21 +40,6 @@
   [^String theStr]
   (->> (.getBytes theStr) (java.io.ByteArrayInputStream.)))
 
-;; seek functions
-(defn seek
-  [^::Reader reader, match?, continueSeek?, munch]
-  (loop []
-    (let [peekCh (peek-char reader)]
-      (cond
-        (match? peekCh) (munch reader)
-        (continueSeek? peekCh) (do
-                                 (read-char reader)
-                                 (recur))))))
- 
-(defn seekCharIgnoreWhitespace
-  [^::Reader reader, ch, munch]
-  (seek reader #(= ch %) isWhitespace? munch))
- 
 ;;; parser stuff
 
 (defn match-seq
