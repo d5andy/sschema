@@ -121,14 +121,19 @@
 
 (defn parseDocumentEnd
   [^::Reader reader, ^::ParserWriter writer]
-  ())
+  (let [type (determineTagTypeIgnoreWhitespace reader)]
+    (condp = type
+      :commentStart (do (commentText writer (parseComment reader))
+                        (parseDocumentEnd reader writer))
+      :nil (documentEnd writer)
+      (throwUnexpectedTypeException type))))
 
 (defn parseRoot
   [^::Reader reader, ^::ParserWriter writer, type]
   (condp = type
     :whitespace (do (read-char reader)
                     (parseRoot reader writer (determineTagType reader)))
-    :commentStart (do (parseComment reader)
+    :commentStart (do (commentText writer (parseComment reader))
                       (parseRoot reader writer (determineTagType reader)))
     :elementStart (let [element (parseElement reader)
                         closingType (determineTagTypeIgnoreWhitespace reader)]

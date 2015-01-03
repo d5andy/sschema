@@ -47,37 +47,37 @@
 
 (deftest test-parseProlog
   (testing "attributes"
-    (is (= " :prolog {\"encoding\" \"UTF-16\"} :startElement \"bean\" :attr {} :endElement \"bean\""
+    (is (= " :prolog {\"encoding\" \"UTF-16\"} :startElement \"bean\" :attr {} :endElement \"bean\" :endDocument"
            (let [reader (-> "<?xml encoding=\"UTF-16\"?><bean/>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
   (testing "no-attributes"
-    (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\" :endDocument"
            (let [reader (-> "<?xml?><bean><child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
   (testing "text"
-    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"aaa\" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"aaa\" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\" :endDocument"
            (let [reader (-> "<?xml ?><bean>aaa<child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
   (testing "comment"
-    (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\" :endDocument"
            (let [reader (-> "<?xml ?><bean><!-- dsad --><child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
   (testing "cdata"
-    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"dsad<>\" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"dsad<>\" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\" :endDocument"
            (let [reader (-> "<?xml ?><bean><![CDATA[dsad<>]]><child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (dump writer)))))
   (testing "whitespace"
-    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"  \" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\""
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"  \" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\" :endDocument"
            (let [reader (-> "<?xml ?><bean>  <child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
