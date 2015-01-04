@@ -12,25 +12,37 @@
   (commentText [writer ^String value])
   (elementEnd [writer name])
   (documentEnd [writer]))
- 
+
+(def debug false)
+(defn- debug
+  [^::Writer writer]
+  (when debug  (println (.toString writer))))
+
 (deftype StringParserWriter [^:unsynchronized-mutable output]
   ParserWriter
   (prolog [writer attributes]
-    (set! output (conj (vec output) " :prolog " attributes)))
+    (set! output (conj (vec output) " :prolog " attributes))
+    (debug writer))
   (elementStart [writer name attributes]
-    (set! output (conj (vec output) " :startElement \"" name "\" :attr " attributes)))
+    (set! output (conj (vec output) " :startElement \"" name "\" :attr " attributes))
+    (debug writer))
   (content [writer value]
     (when value
-      (set! output (conj (vec output) " :content \"" value "\""))))
+      (set! output (conj (vec output) " :content \"" value "\"")))
+    (debug writer))
   (whitespace [writer value]
     (when value
-      (set! output (conj (vec output) " :whitespace \"" value "\""))))
+      (set! output (conj (vec output) " :whitespace \"" value "\"")))
+   (debug writer)) 
   (commentText [writer value]
-           (set! output (conj (vec output) " :comment \"" value "\"")))
+    (set! output (conj (vec output) " :comment \"" value "\""))
+    (debug writer))
   (elementEnd [writer name]
-    (set! output (conj (vec output) " :endElement \"" name "\"")))
+    (set! output (conj (vec output) " :endElement \"" name "\""))
+    (debug writer))
   (documentEnd [writer]
-    (set! output (conj (vec output) " :endDocument")))
+    (set! output (conj (vec output) " :endDocument"))
+    (debug writer))
   Object
   (toString [self] (when output
       (apply str output))))

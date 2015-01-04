@@ -82,6 +82,12 @@
                  writer (createWriter)]
              (parseProlog reader writer)
              (.toString writer)))))
+  (testing "everything"
+    (is (= " :prolog {} :startElement \"bean\" :attr {} :startElement \"child\" :attr {} :content \"somtxt \" :startElement \"kid\" :attr {\"attr\" \"lala\"} :content \"this is <allowed/>\" :endElement \"kid\" :content \" \" :endElement \"child\" :content \"extratxt\" :endElement \"bean\" :comment \" end of it \" :endDocument"
+           (let [reader (-> "<?xml ?><bean><child>somtxt <kid attr = \"lala\"><![CDATA[this is <allowed/>]]></kid> </child>extratxt</bean><!-- end of it -->" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
   )
 
 (run-tests)
