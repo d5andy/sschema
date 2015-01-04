@@ -11,14 +11,12 @@
   (testing "WhitespaceisFalse"
     (is (false? (isAlphaNumeric? (first (char-array " "))))))
   (testing "EmptyisFalse"
-    (is (false? (isAlphaNumeric? (first (char-array ""))))))
+    (is (nil? (isAlphaNumeric? nil))))
   )
 
 (deftest test-isWhitespace
-  (testing "EmptyisFalse"
-    (is (false? (isWhitespace?))))
   (testing "EmptyStringisFalse"
-    (is (false? (isWhitespace? (first (char-array ""))))))
+    (is (nil? (isWhitespace? nil))))
   (testing "SpaceIsTrue"
     (is (true? (isWhitespace? (first (char-array " "))) )))
   (testing "LetterIsTrue"

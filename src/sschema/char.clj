@@ -9,20 +9,18 @@
     (and lessThanEqualTo moreThanEqualTo)))
  
 (defn isAlphaNumeric?
-  ([] false)
-  ([^Character ch]
-     (if (nil? ch) false
-         (let [intValue (int ch)]
-           (or
-            (or (between? :a :z intValue)
-                (between? :A :Z intValue))
-            (between? :0 :9 intValue))))
-     ))
+  [^Character ch]
+  (when ch
+    (let [intValue (int ch)]
+      (or
+       (or (between? :a :z intValue)
+           (between? :A :Z intValue))
+       (between? :0 :9 intValue)))))
   
 (defn isWhitespace?
-  ([]  false)
-  ([ch] (if (nil? ch) false (Character/isWhitespace ch))))
-  
+  [ch]
+  (when ch (Character/isWhitespace ch)))
+
 (defn isValidNameChar?
   [^Character ch]
   (if (isAlphaNumeric? ch)
