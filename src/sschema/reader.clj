@@ -6,7 +6,7 @@
   (read-char [reader]
     "Returns the next char from the Reader, nil if the end of stream has been reached")
   (peek-char [reader]
-        "Returns the next char from the Reader without removing it from the reader stream"))
+    "Returns the next char from the Reader without removing it from the reader stream"))
  
 (deftype InputStreamReader [^InputStream is ^:unsynchronized-mutable ^"[B" buf]
   Reader
@@ -31,7 +31,8 @@
   [^InputStream is]
   (InputStreamReader. is nil))
  
-(defn skip-char
+(defn ^::Reader skip-char
+  "Reads the next char from the reader and returns the reader."
   [^::Reader reader]
   (read-char reader)
   reader)
@@ -40,26 +41,30 @@
   [^String theStr]
   (->> (.getBytes theStr) (java.io.ByteArrayInputStream.)))
 
-;;; parser stuff
+(defn- match-seq
+  [^::Reader reader, match?]
+  (when (match? (peek-char reader))
+    (cons (read-char reader) (lazy-seq (match-seq reader match?)))))
 
-(defn match-seq
-  [^::Reader reader, match]
-  (when (match (peek-char reader))
-    (cons (read-char reader) (lazy-seq (match-seq reader match)))))
-
-(defn parse-name
+(defn ^String parse-name
+  "Returns a string of valid name chars read from the reader, 
+  stops when the chars read are no longer valid name chars."
   [^::Reader reader]
   (apply str (match-seq reader isValidNameChar?)))
 
-(defn parse-whitespace
+(defn ^String parse-whitespace
+  "Returns a string of whitespace chars read from the reader,
+  stops when the chars read are no longer valid whitespace."
   [^::Reader reader]
   (apply str (match-seq reader isWhitespace?)))
 
-(defn parse-text
+(defn ^String parse-text
+  "Returns a string of valid text read from the reader,
+  stop when the chars are xml control characters."
   [^::Reader reader]
   (apply str (match-seq reader #(when % (not (isCtrlChar? %))))))
 
-(defn quote-seq
+(defn- quote-seq
   [^::Reader reader]
   (let [ch (read-char reader)]
     (if (nil? ch)
@@ -67,12 +72,14 @@
       (when-not (= \" ch)
         (cons ch (lazy-seq (quote-seq reader)))))))
 
-(defn parse-quoted
+(defn ^String parse-quoted
+  "Returns are string read from the reader,
+  stops when the quote character is the next char."
   [^::Reader reader]
   (when (= \" (peek-char reader))
     (apply str (quote-seq (skip-char reader)))))
 
-(defn ctrl-seq
+(defn- ctrl-seq
   [^::Reader reader]
   (let [peek (peek-char reader)]
     (when (isCtrlChar? peek)
@@ -82,5 +89,7 @@
                         (ctrl-seq reader)))))))
 
 (defn parse-ctrl
+  "Return a string of Xml control character, stops when either 
+  end tag is encountered or non control character is the next char."
   [^::Reader reader]
   (apply str (ctrl-seq reader)))

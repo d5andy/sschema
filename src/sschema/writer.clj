@@ -1,14 +1,17 @@
 (ns sschema.writer)
 
 (defprotocol ParserWriter
-  (prolog [writer attributes])
-  (elementStart [writer name attributes])
-  (content [writer value])
-  (whitespace [writer value])
-  (commentText [writer value])
+  (prolog [writer attributes]
+    "Prologs map of attributes")
+  (elementStart [writer ^String name attributes]
+    "Element name and map of attributes")
+  (content [writer ^String value]
+    "Content from element body")
+  (whitespace [writer ^String value]
+    "White space String read from element body")
+  (commentText [writer ^String value])
   (elementEnd [writer name])
-  (documentEnd [writer])
-  (dump [writer]))
+  (documentEnd [writer]))
  
 (deftype StringParserWriter [^:unsynchronized-mutable output]
   ParserWriter
@@ -28,6 +31,6 @@
     (set! output (conj (vec output) " :endElement \"" name "\"")))
   (documentEnd [writer]
     (set! output (conj (vec output) " :endDocument")))
-  (dump [writer]
-    (when output
+  Object
+  (toString [self] (when output
       (apply str output))))

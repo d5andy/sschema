@@ -9,15 +9,15 @@
     (is (= " :startElement \"bean\" :attr {\"blah\" \"value\"}"
            (let [writer (sschema.writer.StringParserWriter. nil)]
              (elementStart writer "bean" {"blah" "value"})
-             (dump writer)))))
+             (.toString  writer)))))
   (testing "empty content"
     (is (nil?
          (let [writer (sschema.writer.StringParserWriter. nil)]
            (content writer nil)
-           (dump writer)))))
+           (.toString  writer)))))
   (testing "empty with dump"
     (is (nil?
-         (dump (sschema.writer.StringParserWriter. nil)))))
+         (.toString ( sschema.writer.StringParserWriter. nil)))))
   )
 (run-tests)
 
