@@ -5,6 +5,10 @@
   (:require [clojure.test :refer :all])
   (:require [clojure.tools.namespace.repl :refer [refresh]]))
 
+(defn throw-parse-error
+  [tag, ^String msg]
+  (throw (IllegalArgumentException. (str tag": "msg))))
+
 (defn cdata-seq
   [^::Reader reader buf]
   (let [ch (read-char reader)]
@@ -55,6 +59,7 @@
         attributes (into {} (process-attributes reader))]
     {:tag elementName :attr attributes}))
 
+
 (defn determineTagType
   [^::Reader reader]
   (let [ctrl-str (parse-ctrl reader)
@@ -62,23 +67,23 @@
     (cond
       (= "<" ctrl-str) (if (isValidNameChar? peek)
                          :elementStart
-                         :illegal)
+                         (throw-parse-error :StartTag " Invalid element name"))
       (= "</" ctrl-str) :elementEndTag
       (= "<?" ctrl-str) (if (= "xml" (parse-name reader))
                           :prologStart
-                          :illegal)
+                          (throw-parse-error :Prolog " Unsupported Processing Instruction"))
       (= "<!--" ctrl-str) :commentStart
       (= "<![" ctrl-str)  (if (and (= "CDATA" (parse-name reader))
                                    (= \[ (read-char reader)))
                             :cdata
-                            :illegal)
+                            (throw-parse-error :CDATA " Illegal definition of tag"))
       (= ">" ctrl-str) :closingTag
       (= "?>" ctrl-str) :prologEnd
       (= "/>" ctrl-str) :elementEnd
       (nil? peek) :nil
       (isWhitespace? peek) :whitespace
       (isValidNameChar? peek) :text
-      :else :illegal)))
+      :else (throw-parse-error :Empty " no tag defined"))))
 
 (defn determineTagTypeIgnoreWhitespace
   [^::Reader reader]
@@ -86,10 +91,6 @@
       (if (= :whitespace type)
         (determineTagTypeIgnoreWhitespace (skip-char reader))
         type)))
-
-(defn throwUnexpectedTypeException
-  [^String type]
-  (throw (IllegalArgumentException. (str "Unexpected type " type))))
 
 (defn parseChildren
   [^::Reader reader, ^::ParserWriter writer, parentElementName]
@@ -107,7 +108,7 @@
                            type (determineTagType reader)]
                        (if (and (= endTagElementName parentElementName) (= :closingTag type))
                          (elementEnd writer parentElementName)
-                         (throw (IllegalArgumentException. (str "Element Close Mismtach")))))
+                         (throw-parse-error :EndTag " Element Close ParentTag Mismatch")))
       :elementStart (let [childElement (parseElement reader)
                           closingType (determineTagTypeIgnoreWhitespace reader)]
                       (elementStart writer (:tag childElement) (:attr childElement))
@@ -118,7 +119,7 @@
                         :elementEnd (do
                                       (elementEnd writer (:tag childElement))
                                       (parseChildren reader writer parentElementName))
-                        (throwUnexpectedTypeException type))))))
+                        (throw-parse-error :EndTag " Expected close tag"))))))
 
 (defn parseDocumentEnd
   [^::Reader reader, ^::ParserWriter writer]
@@ -128,7 +129,7 @@
                       (commentText writer (parseComment reader))
                       (parseDocumentEnd reader writer))
       :nil (documentEnd writer)
-      (throwUnexpectedTypeException type))))
+      (throw-parse-error :DocumentEnd " Unexpected characters at end of document."))))
 
 (defn parseRoot
   [^::Reader reader, ^::ParserWriter writer, type]
@@ -147,8 +148,8 @@
                       :elementEnd (do
                                     (elementEnd writer (:tag element))
                                     (parseDocumentEnd reader writer))
-                      (throwUnexpectedTypeException type)))
-    (throwUnexpectedTypeException type)))
+                      (throw-parse-error :EndTag " Expected Close tag")))
+    (throw-parse-error :StartTag (str  " Unexpected tag in root "type "."))))
 
 (defn parseProlog
   [^::Reader reader ^::ParserWriter writer]
@@ -160,5 +161,5 @@
           (let [nxtType (determineTagTypeIgnoreWhitespace reader)]
             (prolog writer attributes)
             (parseRoot reader writer nxtType))
-          (throwUnexpectedTypeException type)))
+          (throw-parse-error :DocumentStart (str  " Unexpected tag at start of document "type"."))))
       (parseRoot reader writer type))))
