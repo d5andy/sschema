@@ -23,6 +23,9 @@
   (testing "parse-text-nil"
     (is (= "qewr"
            (parse-text (-> "qewr" make-inputstream input-stream-reader)))))
+  (testing "parse-text-nil"
+    (is (= "qe,[[wr"
+           (parse-text (-> "qe,[[wr" make-inputstream input-stream-reader)))))
   )
 
 (deftest test-parse-whitespace
