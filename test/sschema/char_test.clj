@@ -35,4 +35,18 @@
   (testing "someOtherStuffIsFalse"
     (is (every? false? (map #(isValidNameChar? %) (seq ":.$?<>")))))
   )
+
+(deftest test-isValidTextChar
+  (testing "open angle"
+    (is (false? (isValidTextChar? \<))))
+  (testing "close angle"
+    (is (false? (isValidTextChar? \>))))
+  (testing "ampersand"
+    (is (false? (isValidTextChar? \&))))
+  (testing "legal char"
+    (is (true? (isValidTextChar? \a))))
+  (testing "nil char"
+    (is (nil? (isValidTextChar? nil))))
+  )
+
 (run-tests)
