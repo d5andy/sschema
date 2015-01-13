@@ -62,7 +62,7 @@
   "Returns a string of valid text read from the reader,
   stop when the chars are xml control characters."
   [^::Reader reader]
-  (apply str (match-seq reader #(when % (not (isCtrlChar? %))))))
+  (apply str (match-seq reader #(when % (isValidTextChar? %)))))
 
 (defn- quote-seq
   [^::Reader reader]
