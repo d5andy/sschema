@@ -27,6 +27,11 @@
     true
     (or (= \- ch) (= \_ ch) (= \# ch))))
 
+(defn isValidTextChar?
+  [^Character ch]
+  (when ch
+    (not (or (= \& ch) (= \< ch) (= \> ch)))))
+
 (def ctrl-char-int #{(int \<) (int \>) (int \/) (int \!) (int \[) (int \]) (int \?) (int \-)})
 
 (defn isCtrlChar?
