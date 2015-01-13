@@ -88,6 +88,66 @@
                  writer (createWriter)]
              (parseProlog reader writer)
              (.toString writer)))))
+  (testing "whitespace before element name"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<?xml ?>< bean><child>somtxt <kid attr = \"lala\"><![CDATA[this is <allowed/>]]></kid> </child>extratxt</bean><!-- end of it -->" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "prolog after root"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><?xml ?><child>somtxt <kid attr = \"lala\"><![CDATA[this is <allowed/>]]></kid> </child>extratxt</bean><!-- end of it -->" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "element end before child"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><child></bean></child>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "text after end of root"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><child></child></bean>sdf" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "element after end of root"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><child></child></bean><kid/>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "attribute unbalanced"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><child attr=\"asd\" attr2></child></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "attribute unbalanced no value"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><child attr=\"asd\" attr2 = ></child></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "element name illegal"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><ch<ild></child></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "text contains CTRL character"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><child>d&asd</child></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
+  (testing "malformed cdata"
+    (is (thrown? IllegalArgumentException
+           (let [reader (-> "<bean><child><![CATA[dsa?<<>>///]></child></bean>" make-inputstream input-stream-reader)
+                 writer (createWriter)]
+             (parseProlog reader writer)
+             (.toString writer)))))
   )
 
 (run-tests)
