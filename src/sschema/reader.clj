@@ -2,11 +2,18 @@
   (:require [sschema.char :refer :all])
   (:import (java.io InputStream)))
 
+(defmacro ^:private update! [what f]
+    (list 'set! what (list f what)))
+
 (defprotocol Reader
   (read-char [reader]
     "Returns the next char from the Reader, nil if the end of stream has been reached")
   (peek-char [reader]
     "Returns the next char from the Reader without removing it from the reader stream"))
+
+(defprotocol IndexingReader 
+  (get-column-number [reader])
+  (get-line-number [reader]))
  
 (deftype InputStreamReader [^InputStream is ^:unsynchronized-mutable ^"[B" buf]
   Reader
@@ -25,6 +32,38 @@
         (set! buf nil)))
     (when buf
       (char (aget buf 0)))))
+
+(defn- normalize-newline [rdr ch]
+  (if (identical? \return ch)
+    (let [c (peek-char rdr)]
+      (when (or (identical? \formfeed c)
+                (identical? \newline c))
+        (read-char rdr))
+      \newline)
+        ch))
+
+(deftype IndexingInputStreamReader
+    [^::Reader rdr ^:unsynchronized-mutable column  ^:unsynchronized-mutable line]
+  Reader
+  (read-char [reader]
+    (when-let [ch (read-char rdr)]
+      (let [ch (normalize-newline rdr ch)]
+        (when (newline? ch)
+          (set! column 0)
+          (update! line inc))
+        (update! column inc)
+        ch)))
+  (peek-char [reader]
+    (peek-char rdr))
+  IndexingReader
+  (get-line-number [reader]
+    (int line))
+  (get-column-number [reader]
+    (int column)))
+
+(defn ^::IndexingInputStreamReader indexing-input-stream-reader
+  [^::Reader rdr]
+  (IndexingInputStreamReader. rdr 1 1))
  
 (defn ^::Reader input-stream-reader
   "Creates an InputStreamReader from an InputStream"
@@ -40,6 +79,22 @@
 (defn ^InputStream  make-inputstream
   [^String theStr]
   (->> (.getBytes theStr) (java.io.ByteArrayInputStream.)))
+
+;;;
+
+(defn at-line-column-number
+  [line col]
+  (when (and line col) (str "At line "line " column "col " ")))
+
+(defn throw-parse-error
+  ([tag, ^String msg]
+     (throw-parse-error nil nil tag msg))
+  ([rdr,  tag, ^String msg]
+     (if (satisfies? IndexingReader rdr)
+       (throw-parse-error (get-line-number rdr) (get-column-number rdr) tag msg)
+       (throw-parse-error tag msg)))
+  ([line col tag msg]
+    (throw (IllegalArgumentException. (str "Error occurred "(at-line-column-number col line) tag": "msg)))))
 
 (defn- match-seq
   [^::Reader reader, match?]
@@ -68,7 +123,7 @@
   [^::Reader reader]
   (let [ch (read-char reader)]
     (if (nil? ch)
-      (IllegalArgumentException. "Missing end quote")
+      (throw-parse-error reader :Quote " Missing end quote")
       (when-not (= \" ch)
         (cons ch (lazy-seq (quote-seq reader)))))))
 
@@ -93,3 +148,33 @@
   end tag is encountered or non control character is the next char."
   [^::Reader reader]
   (apply str (ctrl-seq reader)))
+
+(defn- cdata-seq
+  [^::Reader reader buf]
+  (let [ch (read-char reader)]
+    (when ch
+      (cond
+        (= \> ch) (if (= '(\] \]) buf)
+                    nil
+                    (cons ch (lazy-seq (cdata-seq reader nil))))
+        (= \] ch) (cons ch (lazy-seq (cdata-seq reader (conj (vec buf) ch))))
+        :else (cons ch (lazy-seq (cdata-seq reader nil)))))))
+
+(defn parseCdata
+  [^::Reader reader]
+  (apply str (-> (cdata-seq reader nil) butlast butlast)))
+
+(defn- comment-seq
+  [^::Reader reader buf]
+  (let [ch (read-char reader)]
+    (when ch
+      (cond
+        (= \> ch) (if (= [\- \-] buf)
+                      nil
+                      (throw-parse-error reader :Comment " close tag in comment body"))
+        (= \- ch) (cons ch (lazy-seq (comment-seq reader (conj (vec buf) ch))))
+        :else (cons ch (lazy-seq (comment-seq reader nil)))))))
+
+(defn parseComment
+  [^::Reader reader]
+  (apply str (-> (comment-seq reader nil) butlast butlast)))
