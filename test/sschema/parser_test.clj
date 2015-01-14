@@ -90,7 +90,7 @@
              (.toString writer)))))
   (testing "whitespace before element name"
     (is (thrown-with-msg? IllegalArgumentException #":StartTag"
-           (let [reader (-> "<?xml ?>< bean><child>somtxt <kid attr = \"lala\"><![CDATA[this is <allowed/>]]></kid> </child>extratxt</bean><!-- end of it -->" make-inputstream input-stream-reader)
+           (let [reader (-> "<?xml ?>< bean><child>somtxt <kid attr = \"lala\"><![CDATA[this is <allowed/>]]></kid> </child>extratxt</bean><!-- end of it -->" make-inputstream input-stream-reader )
                  writer (createWriter)]
              (parseProlog reader writer)
              (.toString writer)))))
@@ -144,7 +144,7 @@
              (.toString writer)))))
   (testing "malformed cdata"
     (is (thrown-with-msg? IllegalArgumentException #":CDATA"
-           (let [reader (-> "<bean><child><![CATA[dsa?<<>>///]></child></bean>" make-inputstream input-stream-reader)
+           (let [reader (-> "<bean><child><![CATA[dsa?<<>>///]></child></bean>" make-inputstream input-stream-reader indexing-input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
              (.toString writer)))))
