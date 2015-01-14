@@ -1,7 +1,7 @@
 (ns sschema.writer)
 
 (defprotocol ParserWriter
-  (prolog [writer attributes]
+  (processingInstruction [writer name attributes]
     "Prologs map of attributes")
   (elementStart [writer ^String name attributes]
     "Element name and map of attributes")
@@ -20,7 +20,7 @@
 
 (deftype StringParserWriter [^:unsynchronized-mutable output]
   ParserWriter
-  (prolog [writer attributes]
+  (processingInstruction [writer name attributes]
     (set! output (conj (vec output) " :prolog " attributes))
     (debug writer))
   (elementStart [writer name attributes]
