@@ -4,6 +4,30 @@
   (:require [sschema.char :refer :all])
   (:require [clojure.tools.namespace.repl :refer [refresh]]))
 
+(deftest test-throw-parse-error
+  (let [rdr (-> "s\newline asdf" make-inputstream input-stream-reader)
+        irdr (indexing-input-stream-reader rdr)]
+    (testing "indexing-rdr line numbers"
+      (is (thrown-with-msg? IllegalArgumentException #"line 1 column 1"
+                            (throw-parse-error irdr :tag "msg"))))
+    (testing "non-indexing-rdr without line numbers"
+      (is (thrown-with-msg? IllegalArgumentException #"Error occurred :tag: msg"
+                            (throw-parse-error rdr :tag "msg"))))
+    (testing "only tag and message"
+      (is (thrown-with-msg? IllegalArgumentException #"Error occurred :tag: message"
+                            (throw-parse-error :tag "message"))))))
+
+(deftest test-IndexingReader
+  (testing "multiline-read"
+    (let [rdr (-> "s\newline asdf" make-inputstream input-stream-reader indexing-input-stream-reader)]
+      (is (= [1,1] [(get-column-number rdr) (get-line-number rdr)]))
+      (is (= [1,2] (do (doto rdr read-char read-char)
+                       [(get-column-number rdr) (get-line-number rdr)])))
+      (is (= [3,2] (do (doto rdr read-char read-char)
+                       [(get-column-number rdr) (get-line-number rdr)])))
+      )
+    ))
+
 (deftest test-parse-name
   (testing "parse-name"
     (is (= "bean"
