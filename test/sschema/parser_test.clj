@@ -27,9 +27,9 @@
   (testing "elementEnd"
     (is (= :elementEnd (-> "/>" make-inputstream input-stream-reader determineTagType))))
   (testing "prologStart"
-    (is (= :prologStart (-> "<?xml" make-inputstream input-stream-reader determineTagType))))
+    (is (= :processingInstructionStartTag (-> "<?xml" make-inputstream input-stream-reader determineTagType))))
   (testing "prologEnd"
-    (is (= :prologEnd (-> "?>" make-inputstream input-stream-reader determineTagType))))
+    (is (= :processingInstructionCloseTag (-> "?>" make-inputstream input-stream-reader determineTagType))))
   (testing "comment"
     (is (= :commentStart (-> "<!--" make-inputstream input-stream-reader determineTagType))))
   (testing "cdata"
@@ -95,7 +95,7 @@
              (parseProlog reader writer)
              (.toString writer)))))
   (testing "prolog after root"
-    (is (thrown-with-msg? IllegalArgumentException #":prologStart"
+    (is (thrown-with-msg? IllegalArgumentException #":processingInstructionStartTag"
            (let [reader (-> "<bean><?xml ?><child>somtxt <kid attr = \"lala\"><![CDATA[this is <allowed/>]]></kid> </child>extratxt</bean><!-- end of it -->" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseProlog reader writer)
