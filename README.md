@@ -12,4 +12,3 @@ Incomplete:
 * fix the simplistic processing instructions (known issue)
 * handle different encodings
 * handle namespaces in the event handler (sax stye perhaps)
-* track position by column and line for error reporting
