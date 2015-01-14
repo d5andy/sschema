@@ -34,16 +34,14 @@
                          :elementStart
                          (throw-parse-error reader :StartTag " Invalid element name"))
       (= "</" ctrl-str) :elementEndTag
-      (= "<?" ctrl-str) (if (= "xml" (parse-name reader))
-                          :prologStart
-                          (throw-parse-error reader :Prolog " Unsupported Processing Instruction"))
+      (= "<?" ctrl-str) :processingInstructionStartTag
       (= "<!--" ctrl-str) :commentStart
       (= "<![" ctrl-str)  (if (and (= "CDATA" (parse-name reader))
                                    (= \[ (read-char reader)))
                             :cdata
                             (throw-parse-error reader :CDATA " Illegal definition of tag"))
       (= ">" ctrl-str) :closingTag
-      (= "?>" ctrl-str) :prologEnd
+      (= "?>" ctrl-str) :processingInstructionCloseTag
       (= "/>" ctrl-str) :elementEnd
       (nil? peek) :nil
       (isWhitespace? peek) :whitespace
@@ -56,6 +54,15 @@
       (if (= :whitespace type)
         (determineTagTypeIgnoreWhitespace (skip-char reader))
         type)))
+
+(defn parseProcessingInstruction
+  [^::Reader reader]
+  (let [name (parse-name reader)
+        attributes (into {} (process-attributes reader))
+        endTag (determineTagTypeIgnoreWhitespace reader)]
+    (if (= :processingInstructionCloseTag endTag)
+      {:tag name :attr attributes}
+      (throw-parse-error reader :processingInstructionCloseTag " wrong close tag "endTag))))
 
 (defn parseChildren
   [^::Reader reader, ^::ParserWriter writer, parentElementName]
@@ -119,12 +126,9 @@
 (defn parseProlog
   [^::Reader reader ^::ParserWriter writer]
   (let [type (determineTagType reader)]
-    (if (= type :prologStart)
-      (let [attributes (into {} (process-attributes reader))
-            type (determineTagTypeIgnoreWhitespace reader)]
-        (if (= :prologEnd type)
-          (let [nxtType (determineTagTypeIgnoreWhitespace reader)]
-            (prolog writer attributes)
-            (parseRoot reader writer nxtType))
-        (throw-parse-error reader :DocumentStart (str  " Unexpected tag at start of document "type"."))))
+    (if (= :processingInstructionStartTag type)
+      (let [pInstruction (parseProcessingInstruction reader)
+            nxtType (determineTagTypeIgnoreWhitespace reader)]
+        (processingInstruction writer (:tag pInstruction) (:attr pInstruction))
+        (parseRoot reader writer nxtType))
       (parseRoot reader writer type))))
