@@ -31,7 +31,7 @@
       (cond
         (= \> ch) (if (= [\- \-] buf)
                       nil
-                      (throw (IllegalArgumentException. "close tag in comment body")))
+                      (throw-parse-error :Comment " close tag in comment body"))
         (= \- ch) (cons ch (lazy-seq (comment-seq reader (conj (vec buf) ch))))
         :else (cons ch (lazy-seq (comment-seq reader nil)))))))
 
@@ -50,8 +50,8 @@
           (let [attributeValue (do (parse-whitespace (skip-char reader)) (parse-quoted reader))]
                 (if attributeValue
                   (cons {attributeName attributeValue} (lazy-seq (process-attributes reader)))
-                  (throw (IllegalArgumentException. "unbalanced attributes no value"))))
-          (throw (IllegalArgumentException. "unbalanced attributes no equals")))))))
+                  (throw-parse-error :Attribute " unbalanced attributes no value")))
+          (throw-parse-error :Attribute " unbalanced attributes no equals"))))))
 
 (defn ^String parseElement
   [^::Reader reader]
