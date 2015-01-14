@@ -5,40 +5,6 @@
   (:require [clojure.test :refer :all])
   (:require [clojure.tools.namespace.repl :refer [refresh]]))
 
-(defn throw-parse-error
-  [tag, ^String msg]
-  (throw (IllegalArgumentException. (str tag": "msg))))
-
-(defn cdata-seq
-  [^::Reader reader buf]
-  (let [ch (read-char reader)]
-    (when ch
-      (cond
-        (= \> ch) (if (= '(\] \]) buf)
-                    nil
-                    (cons ch (lazy-seq (cdata-seq reader nil))))
-        (= \] ch) (cons ch (lazy-seq (cdata-seq reader (conj (vec buf) ch))))
-        :else (cons ch (lazy-seq (cdata-seq reader nil)))))))
-
-(defn parseCdata
-  [^::Reader reader]
-  (apply str (-> (cdata-seq reader nil) butlast butlast)))
-
-(defn comment-seq
-  [^::Reader reader buf]
-  (let [ch (read-char reader)]
-    (when ch
-      (cond
-        (= \> ch) (if (= [\- \-] buf)
-                      nil
-                      (throw-parse-error :Comment " close tag in comment body"))
-        (= \- ch) (cons ch (lazy-seq (comment-seq reader (conj (vec buf) ch))))
-        :else (cons ch (lazy-seq (comment-seq reader nil)))))))
-
-(defn parseComment
-  [^::Reader reader]
-  (apply str (-> (comment-seq reader nil) butlast butlast)))
-
 (defn process-attributes
   [^::Reader reader]
   (parse-whitespace reader)
@@ -58,7 +24,6 @@
   (let [elementName (parse-name reader)
         attributes (into {} (process-attributes reader))]
     {:tag elementName :attr attributes}))
-
 
 (defn determineTagType
   [^::Reader reader]
