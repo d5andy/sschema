@@ -37,3 +37,9 @@
 (defn isCtrlChar?
   [^Character ch]
   (when ch (contains? ctrl-char-int (int ch))))
+
+(defn newline?
+  "Checks whether the character is a newline"
+  [^Character ch]
+  (or (identical? \newline ch)
+      (nil? ch)))
