@@ -19,11 +19,6 @@
                   (throw-parse-error reader :Attribute " unbalanced attributes no value")))
           (throw-parse-error reader :Attribute " unbalanced attributes no equals"))))))
 
-(defn ^String parseElement
-  [^::Reader reader]
-  (let [elementName (parse-name reader)
-        attributes (into {} (process-attributes reader))]
-    {:tag elementName :attr attributes}))
 
 (defn determineTagType
   [^::Reader reader]
@@ -55,6 +50,19 @@
         (determineTagTypeIgnoreWhitespace (skip-char reader))
         type)))
 
+(defn parse-element
+  [^::Reader reader, ^::ParserWriter writer, childFunc, finalFunc]
+  (let [tag (parse-name reader)
+        attr (into {} (process-attributes reader))        
+        closingType (determineTagTypeIgnoreWhitespace reader)]
+    (elementStart writer tag attr)
+    (condp = closingType
+      :closingTag (childFunc reader writer tag)
+      :elementEnd (elementEnd writer tag)
+      (throw-parse-error reader :EndTag " Expected close tag"))
+    (finalFunc reader writer)))
+
+
 (defn parseProcessingInstruction
   [^::Reader reader]
   (let [name (parse-name reader)
@@ -63,6 +71,11 @@
     (if (= :processingInstructionCloseTag endTag)
       {:tag name :attr attributes}
       (throw-parse-error reader :processingInstructionCloseTag " wrong close tag "endTag))))
+
+(defn parse-comment
+  [^::Reader reader, ^::ParserWriter writer, nextFunc]
+  (commentText writer (parseComment reader))
+  (nextFunc reader writer))
 
 (defn parseChildren
   [^::Reader reader, ^::ParserWriter writer, parentElementName]
@@ -74,24 +87,16 @@
                  (parseChildren reader writer parentElementName))
       :text (do (content writer (parse-text reader))
                 (parseChildren reader writer parentElementName))
-      :commentStart (do (parseComment reader)
-                        (parseChildren reader writer parentElementName))
+      :commentStart (parse-comment reader writer #(parseChildren %1 %2 parentElementName))
       :elementEndTag (let [endTagElementName (parse-name reader)
                            type (determineTagType reader)]
                        (if (and (= endTagElementName parentElementName) (= :closingTag type))
                          (elementEnd writer parentElementName)
                          (throw-parse-error reader :EndTag " Element Close ParentTag Mismatch")))
-      :elementStart (let [childElement (parseElement reader)
-                          closingType (determineTagTypeIgnoreWhitespace reader)]
-                      (elementStart writer (:tag childElement) (:attr childElement))
-                      (condp = closingType
-                        :closingTag (do
-                                      (parseChildren reader writer (:tag childElement))
-                                      (parseChildren reader writer parentElementName))
-                        :elementEnd (do
-                                      (elementEnd writer (:tag childElement))
-                                      (parseChildren reader writer parentElementName))
-                        (throw-parse-error reader :EndTag " Expected close tag"))))))
+      :elementStart (parse-element reader writer
+                                   #(parseChildren %1 %2 %3)
+                                   #(parseChildren %1 %2 parentElementName))
+      (throw-parse-error reader :StartTag (str  " Unexpected tag in child "type ".")))))
 
 (defn parseDocumentEnd
   [^::Reader reader, ^::ParserWriter writer]
@@ -104,31 +109,26 @@
       (throw-parse-error reader :DocumentEnd " Unexpected characters at end of document."))))
 
 (defn parseRoot
-  [^::Reader reader, ^::ParserWriter writer, type]
-  (condp = type
-    :whitespace (do (read-char reader)
-                    (parseRoot reader writer (determineTagType reader)))
-    :commentStart (do (commentText writer (parseComment reader))
+  [^::Reader reader, ^::ParserWriter writer]
+  (let [type (determineTagTypeIgnoreWhitespace reader)]
+    (condp = type
+      :whitespace (do (parse-whitespace reader)
                       (parseRoot reader writer (determineTagType reader)))
-    :elementStart (let [element (parseElement reader)
-                        closingType (determineTagTypeIgnoreWhitespace reader)]
-                    (elementStart writer (:tag element) (:attr element))
-                    (condp = closingType
-                      :closingTag (do
-                                    (parseChildren reader writer (:tag element))
-                                    (parseDocumentEnd reader writer))
-                      :elementEnd (do
-                                    (elementEnd writer (:tag element))
-                                    (parseDocumentEnd reader writer))
-                      (throw-parse-error reader :EndTag " Expected Close tag")))
-    (throw-parse-error reader :StartTag (str  " Unexpected tag in root "type "."))))
+      :commentStart (parse-comment reader writer
+                                   #(parseRoot %1 %2 (determineTagType %1)))
+      :elementStart (parse-element reader writer
+                                   #(parseChildren %1 %2 %3)
+                                   #(parseDocumentEnd %1 %2))
+      (throw-parse-error reader :StartTag (str  " Unexpected tag in root "type ".")))))
 
 (defn parseProlog
   [^::Reader reader ^::ParserWriter writer]
   (let [type (determineTagType reader)]
     (if (= :processingInstructionStartTag type)
-      (let [pInstruction (parseProcessingInstruction reader)
-            nxtType (determineTagTypeIgnoreWhitespace reader)]
-        (processingInstruction writer (:tag pInstruction) (:attr pInstruction))
-        (parseRoot reader writer nxtType))
-      (parseRoot reader writer type))))
+      (let [pInstruction (parseProcessingInstruction reader)]
+        (processingInstruction writer (:tag pInstruction) (:attr pInstruction))))))
+
+(defn parseXml
+  [^::Reader reader ^::ParserWriter writer]
+  (parseProlog reader writer)
+  (parseRoot reader writer))
