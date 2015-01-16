@@ -14,35 +14,35 @@
               (is (= {:tag "bean" :attr {"name" "value" "sec" "ond"}} 
                      (-> "bean name=\"value\" sec=\"ond\"/>" make-inputstream input-stream-reader parseElement))))))
 
-(deftest test-determineTagType
+(deftest test-read-tag
   (testing "nil"
-    (is (= :nil (-> "" make-inputstream input-stream-reader determineTagType))))
+    (is (= :nil (-> "" make-inputstream input-stream-reader read-tag))))
   (testing "whitespace"
-    (is (= :whitespace (-> " " make-inputstream input-stream-reader determineTagType))))
+    (is (= :whitespace (-> " " make-inputstream input-stream-reader read-tag))))
   (testing "text"
-    (is (= :text (-> "a" make-inputstream input-stream-reader determineTagType))))
+    (is (= :text (-> "a" make-inputstream input-stream-reader read-tag))))
   (testing "closingTag"
-    (is (= :closingTag (-> ">" make-inputstream input-stream-reader determineTagType))))
+    (is (= :closingTag (-> ">" make-inputstream input-stream-reader read-tag))))
   (testing "elementEnd"
-    (is (= :elementEnd (-> "/>" make-inputstream input-stream-reader determineTagType))))
+    (is (= :elementEnd (-> "/>" make-inputstream input-stream-reader read-tag))))
   (testing "prologStart"
-    (is (= :processingInstructionStartTag (-> "<?xml" make-inputstream input-stream-reader determineTagType))))
+    (is (= :processingInstructionStartTag (-> "<?xml" make-inputstream input-stream-reader read-tag))))
   (testing "prologEnd"
-    (is (= :processingInstructionCloseTag (-> "?>" make-inputstream input-stream-reader determineTagType))))
+    (is (= :processingInstructionCloseTag (-> "?>" make-inputstream input-stream-reader read-tag))))
   (testing "comment"
-    (is (= :commentStart (-> "<!--" make-inputstream input-stream-reader determineTagType))))
+    (is (= :commentStart (-> "<!--" make-inputstream input-stream-reader read-tag))))
   (testing "cdata"
-    (is (= :cdata (-> "<![CDATA[" make-inputstream input-stream-reader determineTagType))))
+    (is (= :cdata (-> "<![CDATA[" make-inputstream input-stream-reader read-tag))))
   (testing "elementEndTag"
-    (is (= :elementEndTag (-> "</" make-inputstream input-stream-reader determineTagType))))
+    (is (= :elementEndTag (-> "</" make-inputstream input-stream-reader read-tag))))
   (testing "elementStart"
-    (is (= :elementStart (-> "<a" make-inputstream input-stream-reader determineTagType)))))
+    (is (= :elementStart (-> "<a" make-inputstream input-stream-reader read-tag)))))
 
-(deftest test-determineTagTypeIgnoreWhitespace
+(deftest test-read-tag-skip-whitespace
   (testing "whitespaceBeforeTag"
-    (is (= :closingTag (-> " >" make-inputstream input-stream-reader determineTagTypeIgnoreWhitespace))))
+    (is (= :closingTag (-> " >" make-inputstream input-stream-reader read-tag-skip-whitespace))))
   (testing "no_whitespaceBeforeTag"
-    (is (= :elementEnd (-> "/>" make-inputstream input-stream-reader determineTagTypeIgnoreWhitespace)))))
+    (is (= :elementEnd (-> "/>" make-inputstream input-stream-reader read-tag-skip-whitespace)))))
 
 (deftest test-parseXml
   (testing "attributes"
