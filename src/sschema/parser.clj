@@ -62,16 +62,6 @@
       (throw-parse-error reader :EndTag " Expected close tag"))
     (finalFunc reader writer)))
 
-
-(defn parseProcessingInstruction
-  [^::Reader reader]
-  (let [name (parse-name reader)
-        attributes (into {} (process-attributes reader))
-        endTag (determineTagTypeIgnoreWhitespace reader)]
-    (if (= :processingInstructionCloseTag endTag)
-      {:tag name :attr attributes}
-      (throw-parse-error reader :processingInstructionCloseTag " wrong close tag "endTag))))
-
 (defn parse-comment
   [^::Reader reader, ^::ParserWriter writer, nextFunc]
   (commentText writer (parseComment reader))
@@ -108,27 +98,44 @@
       :nil (documentEnd writer)
       (throw-parse-error reader :DocumentEnd " Unexpected characters at end of document."))))
 
-(defn parseRoot
-  [^::Reader reader, ^::ParserWriter writer]
-  (let [type (determineTagTypeIgnoreWhitespace reader)]
-    (condp = type
-      :whitespace (do (parse-whitespace reader)
-                      (parseRoot reader writer (determineTagType reader)))
-      :commentStart (parse-comment reader writer
-                                   #(parseRoot %1 %2 (determineTagType %1)))
-      :elementStart (parse-element reader writer
-                                   #(parseChildren %1 %2 %3)
-                                   #(parseDocumentEnd %1 %2))
-      (throw-parse-error reader :StartTag (str  " Unexpected tag in root "type ".")))))
+(defn parseProcessingInstruction
+  [^::Reader reader, ^::Writer writer allowXml?]
+  (let [name (parse-name reader)
+        attributes (into {} (process-attributes reader))
+        endTag (determineTagTypeIgnoreWhitespace reader)]
+    (if-not (= :processingInstructionCloseTag endTag)
+      (throw-parse-error reader :processingInstructionCloseTag " wrong close tag "endTag)
+      (if (and (not allowXml?) (= "xml" name))
+        (throw-parse-error reader :ProcessingInstruction "Prolog must be first")
+        (processingInstruction writer name attributes)))))
 
-(defn parseProlog
-  [^::Reader reader ^::ParserWriter writer]
+(defn parseDocument
+  [^::Reader reader, ^::ParserWriter writer, ^String type]
+  (condp = type
+    :processingInstrutionStartTag (do (parseProcessingInstruction reader writer false)
+                                      (parseDocument reader writer (determineTagType reader)))
+    :whitespace (do (parse-whitespace reader)
+                    (parseDocument reader writer (determineTagType reader)))
+    :commentStart (parse-comment reader writer
+                                 #(parseDocument %1 %2 (determineTagType %1)))
+    :elementStart (parse-element reader writer
+                                 #(parseChildren %1 %2 %3)
+                                 #(parseDocumentEnd %1 %2))
+    (throw-parse-error reader :StartTag (str  " Unexpected tag in root "type "."))))
+
+(defn processProlog
+  [^::Reader reader ^::writer writer]
   (let [type (determineTagType reader)]
     (if (= :processingInstructionStartTag type)
-      (let [pInstruction (parseProcessingInstruction reader)]
-        (processingInstruction writer (:tag pInstruction) (:attr pInstruction))))))
+      (do (parseProcessingInstruction reader writer true)
+          (determineTagType reader))
+      type)))
+
+(defn parseStart
+  [^::Reader reader ^::ParserWriter writer]
+  (let [type (processProlog reader writer)]
+    (parseDocument reader writer type)))
 
 (defn parseXml
   [^::Reader reader ^::ParserWriter writer]
-  (parseProlog reader writer)
-  (parseRoot reader writer))
+  (parseStart reader writer))
