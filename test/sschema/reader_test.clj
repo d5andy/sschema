@@ -2,7 +2,9 @@
   (:require [clojure.test :refer :all])
   (:require [sschema.reader :refer :all])
   (:require [sschema.char :refer :all])
-  (:require [clojure.tools.namespace.repl :refer [refresh]]))
+  (:require [clojure.tools.namespace.repl :as tns :refer [refresh]]))
+
+(tns/refresh)
 
 (deftest test-throw-parse-error
   (let [rdr (-> "s\newline asdf" make-inputstream input-stream-reader)

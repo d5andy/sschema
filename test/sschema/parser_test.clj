@@ -4,7 +4,9 @@
   (:require [sschema.parser :refer :all])
   (:require [sschema.reader :refer :all])
   (:require [sschema.writer :refer :all])
-  (:require [clojure.tools.namespace.repl :refer [refresh]]))
+  (:require [clojure.tools.namespace.repl :as tns :refer [refresh]]))
+
+(tns/refresh)
 
 (defn createWriter []
   (sschema.writer.StringParserWriter. nil))

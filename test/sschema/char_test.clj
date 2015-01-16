@@ -1,7 +1,9 @@
 (ns sschema.char-test
   (:require [clojure.test :refer :all])
   (:require [sschema.char :refer :all])
-  (:require [clojure.tools.namespace.repl :refer [refresh]]))
+  (:require [clojure.tools.namespace.repl :as tns :refer [refresh]]))
+
+(tns/refresh)
 
 (deftest test-isAlphaNumberic
   (testing "NumberisTrue"
@@ -13,6 +15,7 @@
   (testing "EmptyisFalse"
     (is (nil? (isAlphaNumeric? nil))))
   )
+
 
 (deftest test-isWhitespace
   (testing "EmptyStringisFalse"

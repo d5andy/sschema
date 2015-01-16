@@ -1,8 +1,9 @@
 (ns sschema.writer-test
   (:require [clojure.test :refer :all])
   (:require [sschema.writer :refer :all])
-  (:require [clojure.tools.namespace.repl :refer [refresh]]))
+  (:require [clojure.tools.namespace.repl :as tns :refer [refresh]]))
 
+(tns/refresh)
 
 (deftest test-StringParserWriter
   (testing "addingAndDumping"

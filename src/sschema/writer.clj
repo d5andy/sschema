@@ -14,9 +14,9 @@
   (documentEnd [writer]))
 
 (def debug false)
-(defn- debug
-  [^::Writer writer]
-  (when debug  (println (.toString writer))))
+(defn- debug [^::Writer writer]
+  (when (true? debug)
+    (println (.toString writer))))
 
 (deftype StringParserWriter [^:unsynchronized-mutable output]
   ParserWriter

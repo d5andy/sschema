@@ -2,8 +2,7 @@
   (:require [sschema.char :refer :all])  
   (:require [sschema.reader :refer :all])
   (:require [sschema.writer :refer :all])
-  (:require [clojure.test :refer :all])
-  (:require [clojure.tools.namespace.repl :refer [refresh]]))
+  (:require [clojure.test :refer :all]))
 
 (defn read-tag
   [^::Reader reader]
