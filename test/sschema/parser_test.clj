@@ -76,6 +76,7 @@
            (let [reader (-> "<?xml ?><bean><![CDATA[dsad<>]]><child/></bean>" make-inputstream input-stream-reader)
                  writer (createWriter)]
              (parseXml reader writer)
+
              (.toString writer)))))
   (testing "whitespace"
     (is (= " :prolog {} :startElement \"bean\" :attr {} :content \"  \" :startElement \"child\" :attr {} :endElement \"child\" :endElement \"bean\" :endDocument"
@@ -150,5 +151,8 @@
              (parseXml reader writer)
              (.toString writer)))))
   )
+
+(deftest thisFails
+  (is (= 1 0)))
 
 (run-tests)
