@@ -1,0 +1,6 @@
+# language setting
+language: clojure
+# lein tag
+lein: lein2
+
+script: lein test
