@@ -13,4 +13,4 @@ Incomplete:
 * handle different encodings
 * handle namespaces in the event handler (sax stye perhaps)
 
-![build is here](https://api.shippable.com/projects/54b5a2025ab6cc1352888526/badge?branchName=master)
+[![Build Status](https://api.shippable.com/projects/54b5a2025ab6cc1352888526/badge?branchName=master)](https://app.shippable.com/projects/54b5a2025ab6cc1352888526/builds/latest)
