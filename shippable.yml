@@ -1,6 +1,14 @@
-# language setting
+# Language setting
 language: clojure
-# lein tag
-lein: lein2
 
-script: lein test
+lein:
+  - lein2
+
+# Create directories for test and coverage reports
+before_script:
+  - mkdir -p shippable/testresults
+  - mkdir -p shippable/codecoverage
+
+# Running the test with Leiningen
+script:
+  - lein test
