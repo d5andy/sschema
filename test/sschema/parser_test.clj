@@ -152,7 +152,4 @@
              (.toString writer)))))
   )
 
-(deftest thisFails
-  (is (= 1 0)))
-
 (run-tests)
